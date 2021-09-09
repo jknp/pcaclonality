@@ -1,0 +1,138 @@
+---
+title: "Clonality_revisited"
+author: "JK"
+date: "5/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(QDNAseq)
+library(CGHbase)
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(GenomicRanges)
+library(GenomicFeatures)
+library(Homo.sapiens)
+library(ggplot2)
+
+## Load the Clonality_data.RData workspace environment
+
+path = "D:/PhD/Projects/201707-02 Primary PCa vs Lymph node metastases/Revisited/"
+options(readr.num_columns = 0)
+
+gns = c("TP53", "RB1", "MYC", "NKX3-1", "SPOP", "DNER", "EXT2", "AMOTL1", 
+        "RBM33", "ZBTB20", "XBP1", "PMFBP1", "HSD17B14", "KLF9")
+
+##preloaded result of means of genes acros the span
+result <- data.frame(read_delim(paste0(path, "sel_gene_result.txt"), 
+                                "\t", escape_double = FALSE, trim_ws = TRUE))
+result$pat <- Sample_annotation$Patient
+result$patid <- Sample_annotation$Pair_No
+
+## Useful files
+head(Sample_annotation)
+head(dataCNA)
+
+## helper function
+geneRanges <- 
+     function(db, column="ENTREZID")
+  {
+     g <- genes(db, columns=column)
+     col <- mcols(g)[[column]]
+     genes <- granges(g)[rep(seq_along(g), elementNROWS(col))]
+     mcols(genes)[[column]] <- as.character(unlist(col))
+     genes
+     }
+```
+
+```{r #DEP extract locations and overlap with gns to subset the big table}
+#Select genes and get their GenomicRanges
+gr_sel <- geneRanges(Homo.sapiens, column="SYMBOL")
+gr_sel <- rmchr(gr_sel)
+gns_sel <- gr_sel[gr_sel$SYMBOL %in% gns]
+
+#Get CNA bins and clean up to convert to GenomicRanges
+C_dat <- dataCNA
+C_dat$end <- C_dat$maploc + 300000
+colnames(C_dat)[1:2] = c("chr", "start")
+C_dat <- C_dat[,c(1:2, 103, 3:102)]
+test <- sapply(C_dat[1:3], as.numeric)
+
+#get all the bins to overlap with gns_sel, tidy up table
+C_gr <- makeGRangesFromDataFrame(test, ignore.strand = T)
+overlaps <- findOverlaps(query = gns_sel, subject = C_gr, type = "any")
+CNA_sel = data.frame(C_dat[subjectHits(overlaps),], gns_sel[queryHits(overlaps),])
+CNA_sel <- CNA_sel[,c(1:3,109,4:103)]
+colnames(CNA_sel)[4] <- "gene"
+```
+
+```{r #DEP log2ratio means of selected genes}
+#getting the mean log2ratio CNA values per patient for selected genes
+result = vector(mode = "list")
+
+for (i in 1:length(gns)){
+  a <- CNA_sel[which(CNA_sel$gene == gns[i]),]
+  a[,5:104] <- sapply(a[,5:104], as.numeric)
+  result[[i]] = colMeans(a[5:104])
+}
+
+#tidying up the results
+result = do.call(rbind, result)
+result = data.frame(result)
+result$gene = gns
+result <- result[,c(101,1:100)]
+result = t(result)
+colnames(result) = result[1,]
+result = data.frame(result[-1,], stringsAsFactors = T)
+
+write_delim(result, path = paste0(path, "sel_gene_result.txt"), "\t", col_names = T)
+```
+
+```{r get ids for a adjustable cutoff value}
+gain = vector(mode = "list")
+loss = vector(mode = "list")
+cutoff = .25 #still find the right cutoff value with these heterogenous TC% data
+
+#using pat here instead of patid
+for (i in 1:length(gns)){
+  gain[[i]] = result$pat[which(result[,i] > cutoff)]
+  names(gain)[[i]] = gns[i]
+  
+  loss[[i]] = result$pat[which(result[,i] < -cutoff)]
+  names(loss)[[i]] = gns[i]
+}
+
+#counting the indivual patients per gene
+res_gain = vector(mode = "list")
+res_loss = vector(mode = "list")
+
+for (i in 1:length(gain)){
+  res_gain[[i]] = length(unique(gain[[i]]))
+  res_loss[[i]] = length(unique(loss[[i]]))
+}
+
+#Tidying results up
+res_cnv_g = data.frame(cbind(gns, unlist(res_gain)))
+res_cnv_g$call = "gain"
+res_cnv_l = data.frame(cbind(gns, unlist(res_loss)))
+res_cnv_l$call = "loss"
+res_cnv = rbind(res_cnv_g, res_cnv_l)
+colnames(res_cnv) = c("gene", "patients", "call")
+res_cnv$patients = as.numeric(as.character(res_cnv[,2]))
+                              
+#Adding percentage of cohort (n=30)
+res_cnv$perc = (res_cnv$patients / 30)
+```
+
+```{r visualizing results}
+#barplot for all patients if there is any CNV in a gene
+a <- ggplot(res_cnv, aes(x = gene, y = perc, fill = call)) + 
+  geom_bar(stat= "identity", position=position_dodge()) +
+  geom_text(aes(label=patients), vjust=-0.3, position = position_dodge(0.9), size=3) +
+  labs(title="Number of patients with CNA status per gene", y="ratio in cohort") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+#barplot for metastatic CNA status per gene
+  
+```
