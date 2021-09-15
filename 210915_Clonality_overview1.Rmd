@@ -1,0 +1,88 @@
+---
+title: "Clonality in PCa primary tumors and lymph node metastases"
+output: html_notebook
+---
+Published as: Frequent clonal relations between metastases and non-index prostate cancer lesions 
+Jeroen Kneppers, Oscar Krijgsman, Monique Melis, Jeroen de Jong, Daniel S. Peeper, Elise Bekers, Henk G. van der Poel, Wilbert Zwart, Andries M. Bergman 
+Published January 24, 2019 
+Citation Information: JCI Insight. 2019;4(2):e124756. https://doi.org/10.1172/jci.insight.124756.
+
+
+Special thanks to Oscar Krijgsman for providing initial bulk analysis, heatmap scripts and helpful advice.
+
+### Introduction
+This is documentation providing a comprehensive outline of produced data and figures in this project.
+
+### Contents
+
+0. Setup
+1. QDNAseq processing of LC-WGS (OK code)
+2. CGHcall processing (OK)
+3. Patient CN heatmaps 
+    + Correlation heatmaps
+4. Overview CN heatmaps
+    + Topbar annotation
+5. Zoomed-in CN heatmaps
+    + Topbar annotation
+6. Clonality analysis
+    + 6.1 Density plot
+    + 6.2 Boxplot
+    + 6.3 Area under density
+7. CopywriteR for ChIP
+
+### 0. Setup
+Original study was conducted in R version 3.4
+
+```{r setup, echo = T}
+library(CGHcall)
+library(QDNAseq)
+library(Clonality)
+
+path = "D:/D Projects/201707-02 Primary PCa vs Lymph node metastases/OKData/"
+```
+
+### 1. QDNAseq processing of LC-WGS
+Requires package QDNAseq, code counts low-coverage whole genome sequencing data reads in arbitrary bins of 30kb to deduce whether there are copy number alternations (gains or losses) for each patient in the 30 patient cohort.
+
+```{r QDNAseq} 
+setwd(path)
+
+bins <- getBinAnnotations(binSize=30)
+readCounts <- binReadCounts(bins)
+
+readCountsFiltered<- applyFilters(readCounts, residual=T, blacklist=T, chromosomes=NA)
+readCountsFiltered <- estimateCorrection(readCountsFiltered)
+
+noisePlot(readCountsFiltered)
+copyNumbers<-correctBins(readCountsFiltered) 
+
+copyNumbersNormalized<-normalizeBins(copyNumbers)
+copyNumbersSmooth<-smoothOutlierBins(copyNumbersNormalized)
+
+plot(copyNumbersSmooth)
+
+exportBins(copyNumbersSmooth, file="copyNumbers_Prostate_30Kb.txt")
+exportBins(copyNumbersSmooth, file="Prostate_30Kb.igv", format="igv")
+```
+
+
+### 2. CHGcall processing
+CGHcall reads the QDNAseq data and normalizes, smoothens and segments the QDNAseq data. There is also a segment normalization step which further normalizes the inherently noisy signal before storing it in a CGHcall calls object containing all CNA information.
+
+```{r CGHcall} 
+setwd(path)
+Data <- read.table(file="copyNumbers_Prostate_30Kb.txt", sep = "\t", header=T)
+
+raw <- make_cghRaw(Data)
+prep <- preprocess(raw, maxmiss = 0, nchrom = 22) 
+nor <-  normalize(prep,method = "median", smoothOutliers = TRUE)
+
+seg <-  segmentData(nor, method = "DNAcopy",nperm=2000,undo.splits="sdundo",
+                    min.width=5,undo.SD=2, clen=25, relSDlong=5)
+
+segnorm <- postsegnormalize(seg,inter=c(-0.4,0.4))
+listcalls <- CGHcall(segnorm,nclass=5,robustsig="yes",cellularity=1,ncpus=12)
+calls <- ExpandCGHcall(listcalls,segnorm, divide=5, memeff=FALSE)
+save(calls, file="Zwart_Prostate.Rdata")
+```
+
