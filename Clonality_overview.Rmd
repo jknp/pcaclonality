@@ -104,7 +104,7 @@ for (i in 1:length(unique(Sample_ann$Patient))){
 	IndexSelectedSamples <- which(Sample_ann[,4] == i)
 	
 	pdf(file=paste0("Patient_",i,".pdf"), width=7, height=4)
-	source("/Additional_Scripts/overviewPlot_MIN-MAX.R")
+	source("/Additional_Scripts/overviewPlot_MIN-MAX_Xchromosome_correct.R")
 	overviewPlot(calls[,IndexSelectedSamples], scaling=0.6)
 	
 	dev.off()
