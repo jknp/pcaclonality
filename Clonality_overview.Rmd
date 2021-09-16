@@ -65,7 +65,6 @@ exportBins(copyNumbersSmooth, file="copyNumbers_Prostate_30Kb.txt")
 exportBins(copyNumbersSmooth, file="Prostate_30Kb.igv", format="igv")
 ```
 
-
 ### 2. CHGcall processing
 CGHcall reads the QDNAseq data and normalizes, smoothens and segments the QDNAseq data. There is also a segment normalization step which further normalizes the inherently noisy signal before storing it in a CGHcall calls object containing all CNA information.
 
@@ -86,3 +85,58 @@ calls <- ExpandCGHcall(listcalls,segnorm, divide=5, memeff=FALSE)
 save(calls, file="Zwart_Prostate.Rdata")
 ```
 
+### 3. Patient CN heatmaps
+The following loop takes the calls from a certain patient through indexing by the sample annotation file.
+It then plots copy number gains and losses per chromosome in an overviewplot, which is a script written by OK.
+
+```{r Plotting heatmaps per patient}
+setwd(path)
+load("Zwart_Prostate.Rdata")  
+
+Index_samples <- match(paste0("X",Sample_ann[,1]), colnames(calls))
+calls <- calls[,Index_samples]
+
+## Double check to see if sorted correctly
+table(colnames(calls) == paste0("X",Sample_ann[,1]))
+
+#Plotting loop of CNA per patients
+for (i in 1:length(unique(Sample_ann$Patient))){
+	IndexSelectedSamples <- which(Sample_ann[,4] == i)
+	
+	pdf(file=paste0("Patient_",i,".pdf"), width=7, height=4)
+	source("/Additional_Scripts/overviewPlot_MIN-MAX.R")
+	overviewPlot(calls[,IndexSelectedSamples], scaling=0.6)
+	
+	dev.off()
+}
+```
+
+#### 3.1 Correlation heatmaps
+The following code was used to plot pearson correlations of different tumor foci found in a single patient.
+
+In this case, patient 11 had samples taken from different areas within the same focus(*), but also had many different foci and a lymph node metastasis. The plot in figure 1E shows that the index focus P1 is largely homogeneous in CNAs, while not correlating with the lymph node metastasis (N) nor the other primary loci (P2-P5).
+
+```{r Plotting correlation heatmap of tumor CNAs of a single patient}
+PatientSelect = 11 
+IndexSelectedSamples <- numeric(0)
+
+
+for(i in 1:length(PatientSelect)){
+  #Firstloop is if multiple patients are given in PatientSelect
+  for (j in 1:length(Sample_annotation$Patient)){
+    Selection <- which(Sample_annotation[,4] == PatientSelect[i])
+    }
+  IndexSelectedSamples <- c(IndexSelectedSamples, Selection)
+  }
+
+#Pearson correlation
+corpat <- cor(segmented(calls[,IndexSelectedSamples]))
+
+#plotting and saving
+pdf(file= "heatmap_p11.pdf", width=4*480, height=2.6*480, res=200)
+heatmap3(corpat, method = "ward.D2" , breaks = seq(0, 1, length.out = 1025), 
+         scale = "none",showColDendro = F, labRow = Sample_ann$Pair_No[IndexSelectedSamples], 
+         labCol = Sample_ann$Pair_No[IndexSelectedSamples])
+
+dev.off()
+```
