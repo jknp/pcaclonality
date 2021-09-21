@@ -265,5 +265,17 @@ Sample_ann <- read.table(file="CFMPB293_key.txt", sep="\t", header=T)
 Index_samples <- match(paste0("X",Sample_ann[,1]), colnames(calls))
 calls <- calls[,Index_samples]
 dataCNA <- CNA(copynumber(calls),chrom=chromosomes(calls),maploc=bpstart(calls),sampleid=colnames(calls))
+
+# Average the datapoints, see Clonality Documentation for more information
+# New number of datapoints (2150) = bins (86) / averageing parameter (40)
+dataAve <- ave.adj.probes(dataCNA,40)
 ```
 
+Clonality Analysis - Warning - this can take a while dependent on averageing parameter and computing strength
+Outputs a histogram of reference vs all results log likelihood relationships (including primary - primary pairs)
+```{r Clonality analysis and plotting of log likelihood}
+ptlist <- Sample_ann$Patient
+results <- clonality.analysis(dataAve, ptlist,  pfreq = NULL, refdata = NULL, nmad = 1,  reference = TRUE, allpairs = TRUE)
+
+histogramPlot(results$LR[,4], results$refLR[,4])
+```
