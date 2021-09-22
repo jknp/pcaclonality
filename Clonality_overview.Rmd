@@ -279,3 +279,28 @@ results <- clonality.analysis(dataAve, ptlist,  pfreq = NULL, refdata = NULL, nm
 
 histogramPlot(results$LR[,4], results$refLR[,4])
 ```
+
+
+#### 6.1 Density Plot
+Select only pairs with LN Mets as reference. True checks indicate succesful GCF_ID - Pair_No swapping
+
+```{r Density plots of LLR, echo = FALSE}
+#Find index of LNs, initialize for subsetting
+for(i in 1:length(Sample_ann$Tumor)){
+  Index_LN <- which(Sample_ann$Tumor == "LN")
+}
+
+res_df <- results$LR
+ref_df <- results$refLR
+LNsort <- res_df[FALSE,]
+
+#Subset for Metastases for LR set, then swap GCF_ID for Pair_No in table
+for(i in 1:length(Index_LN)){
+  LNsort <- rbind(LNsort, subset(res_df, res_df[,2] == paste0("X",Sample_ann$GCF_ID[(Index_LN[i])])))
+}
+
+for(i in 1:2){
+  Check <- match(LNsort[,i], paste0("X", Sample_ann[,1]))
+  LNsort[,i] <- Sample_ann$Pair_No[Check]
+}
+```
