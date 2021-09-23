@@ -278,7 +278,6 @@ results <- clonality.analysis(dataAve, ptlist,  pfreq = NULL, refdata = NULL, nm
 histogramPlot(results$LR[,4], results$refLR[,4])
 ```
 
-
 #### 6.1 Density Plot
 Select only pairs with LN Mets as reference. True checks indicate succesful GCF_ID - Pair_No swapping
 
@@ -301,4 +300,47 @@ for(i in 1:2){
   Check <- match(LNsort[,i], paste0("X", Sample_ann[,1]))
   LNsort[,i] <- Sample_ann$Pair_No[Check]
 }
+```
+
+Sorting for cut-off pvalue 0.01
+```{r density plot}
+#intializing plotting dataframes
+ref <- ref_df[,4]
+res <- LNsort[,4]
+
+refd <- data.frame(value = ref)
+resd <- data.frame(res)
+
+#sorting for cut-off pvalue of 0.01
+res <- LNsort
+res <- res[order(LNsort[,10]),]
+
+LNsig <- res[which(res[,10] <= 0.01),]
+LNns <- res[which(res[,10] >= 0.01),] 
+
+primd<- data.frame(value = LNsig[,4])
+smallp <- data.frame(value = LNns[,4])
+
+a <- ggplot() + geom_density(data = log(refd), aes(log(refd)), fill = "grey") + 
+  geom_density(data = log(smallp), aes(log(smallp)), color = "navy", fill = "navy", alpha = 0.5) + 
+  geom_density(data = log(primd), aes(log(primd)), color = "firebrick", fill = "firebrick", alpha = 0.5) +
+  geom_vline(xintercept =  log(4.5e+01)) + labs(x = "log Likelihood Ratio", y = "Density") +
+  scale_x_continuous(expand = c(0, 0), limits = c(-10, 34)) + scale_y_continuous(expand= c(0,0), limits = c(0, 0.21)) +
+  theme_bw() + theme(axis.text=element_text(size=rel(1.)), axis.title=element_text(size=rel(1.5)))
+a
+```
+
+#### 6.2 Boxplot
+```{r boxplot, requires ggpubr}
+refbox <- data.frame(group = "Reference", value = log(refd))
+primbox <- data.frame(group = "Dominant P - LN", value = log(primd))
+smallbox <- data.frame(group = "Other P - LN", value = log(smallp))
+Comp <- rbind(refbox, primbox, smallbox)
+color <- c("grey", "firebrick", "navy")
+
+b <- ggplot(Comp, aes(x=group, y= value, fill = group)) + geom_boxplot(alpha = 0.5) + 
+  scale_fill_manual(values = color) +
+  stat_compare_means(comparisons = list(c("Dominant P - LN", "Other P - LN"))) +
+  theme_bw() 
+b
 ```
