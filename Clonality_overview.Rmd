@@ -23,6 +23,7 @@ This is documentation providing a comprehensive outline of produced data and fig
     + 6.1 Density plot
     + 6.2 Boxplot
 7. CopywriteR for ChIP
+8. Conclusion
 
 ### 0. Setup
 Original study was conducted in R version 3.4 with packages that function under it. The packages are used in the chunks below, with own scripts being called from "/Additional_Scripts/".
@@ -39,6 +40,8 @@ library(Clonality)
 library(ggplot2)
 library(dplyr)
 library(ggpubr)
+library(CopywriteR)
+library(BiocParallel)
 
 path = "D:/D Projects/201707-02 Primary PCa vs Lymph node metastases/OKData/"
 
@@ -344,3 +347,28 @@ b <- ggplot(Comp, aes(x=group, y= value, fill = group)) + geom_boxplot(alpha = 0
   theme_bw() 
 b
 ```
+
+### 7. CopywriteR for ChIP
+```{r CopywriteR to check CNA trends}
+setwd(paste0(path, "/BAMs/WZ_Rotterdam/"))
+preCopywriteR(output.folder = paste0(path, "/CopyWriteR"), bin.size =30000, ref.genome = "hg19", prefix = "")
+
+samples <- list.files(pattern = ".bam$", full.names = TRUE)
+controls <- samples[5:8]
+
+samples <- samples[1:4]
+sample.control <- data.frame(samples, controls)
+
+CopywriteR(sample.control = sample.control, destination.folder = "/CopyWriteR/Dest2", 
+           reference.folder = paste0(path, "/CopyWriteR/hg19_30kb"), bp.param = SnowParam(3L))
+
+#Alternative controls
+controls <- samples[rep(1, length(samples))]
+sample.plot <- data.frame(samples, controls)
+
+
+plotCNA(destination.folder = "/CopyWriteR/Dest2", y.min= -3 , y.max= 3)
+```
+
+### 8. Conclusion
+This code presents a comprehensive overview of methods used to analyze and visualize the CNA data of tumors isolated from 30 patients. The data show that we can trace clonality between tumors using pearson correlation and log likelihood calculation, but for ~23% of patients we cannot prove clonality between lymph node metastases and the index primary tumor. In those cases, the metastasis was seeded by a different, uncharacterized primary tumor. These findings have implications for the safe implementation of focal therapy, a harm-reduction intervention that typically ablates the index primary tumor.
