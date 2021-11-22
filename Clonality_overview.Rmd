@@ -1,16 +1,21 @@
+---
+title: "Clonality overview code"
+author: "JK"
+date: "21 january 2019"
+output: html_document
+---
+
+### Introduction
+This is documentation providing a comprehensive outline of produced data and figures in this project.
+
 Published as: Frequent clonal relations between metastases and non-index prostate cancer lesions 
 Jeroen Kneppers, Oscar Krijgsman, Monique Melis, Jeroen de Jong, Daniel S. Peeper, Elise Bekers, Henk G. van der Poel, Wilbert Zwart, Andries M. Bergman 
 Published January 24, 2019 
 Citation Information: JCI Insight. 2019;4(2):e124756. https://doi.org/10.1172/jci.insight.124756.
 
-
 Special thanks to Oscar Krijgsman for providing initial bulk analysis, heatmap scripts and helpful advice.
 
-### Introduction
-This is documentation providing a comprehensive outline of produced data and figures in this project.
-
 ### Contents
-
 0. Setup
 1. QDNAseq processing of LC-WGS (OK code)
 2. CGHcall processing (OK)
